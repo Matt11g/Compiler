@@ -80,12 +80,12 @@ WHILE while
 "/*"(([^\*])|((\*)+[^\*/]))*(\*)+"/" {}
 "//".* {}
 
-[0-9]+[_a-zA-Z]+[0-9]* {lexError = 1; printf("Error type B at Line %d: Illegal identifier \'%s\'\n", yylineno, yytext); //无语??
+([0-9]+[_a-zA-Z]+[0-9]*|[0-9_a-zA-Z]*[@~]+[0-9_a-zA-Z]*) {lexError = 1; printf("Error type B at Line %d: Illegal identifier \'%s\'\n", yylineno, yytext); //无语??
         return ID;
     }
 0[0-9]+ {lexError = 1; printf("Error type A at Line %d: Illegal INT number (Oct number not identified)\'%s\'\n", yylineno, yytext); return INT; }
 ([0-9]*\.[0-9]*[eE][-+]?[0-9]*)|([0-9]+\.)|(\.[0-9]+)|([0-9]*\.[0-9]*([0-9]*\.[0-9]*)+) {lexError = 1; printf("Error type A at Line %d: Illegal FLOAT number \'%s\'\n", yylineno, yytext); return FLOAT; }
 .  {lexError = 1; printf("Error type A at Line %d: Mysterious characters \'%s\'\n", yylineno, yytext); 
-     return SEMI; //导致syntax error，怎么解决
+     //return SEMI; //导致syntax error，怎么解决
     }
 %%

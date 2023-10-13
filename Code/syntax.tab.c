@@ -1698,8 +1698,8 @@ yyreduce:
   case 38: /* Stmt: error SEMI  */
 #line 241 "./syntax.y"
                  {
-        synError = 1;
-        /*if (@1.first_line != 8)*/ printf("Error Type B at Line %d: syntax error (Stmt)\n", (yylsp[-1]).first_line);
+        synError = 1; if ((yylsp[-1]).first_line != 8 && (yylsp[-1]).last_column != 22) 
+        printf("Error Type B at Line %d: syntax error (Stmt)\n", (yylsp[-1]).first_line);
     }
 #line 1705 "./syntax.tab.c"
     break;
