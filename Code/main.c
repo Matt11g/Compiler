@@ -1,11 +1,15 @@
 #include <stdio.h>
 //#include "syntax.tab.h"
 #include "syntaxTree.h"
+#include "semantic.h"
 extern node_t* root;
 //extern FILE* yyin;
 extern void yyrestart(FILE* input_file);
 extern int yyparse(void);
 extern int lexError, synError;
+
+//#define PRINT_TREE 1
+
 int main(int argc, char** argv) {
     if (argc <= 1) return 1;
     FILE* f = fopen(argv[1], "r");
@@ -15,7 +19,6 @@ int main(int argc, char** argv) {
     }
     yyrestart(f);
     yyparse();
-    if (lexError == 0 && synError == 0) print_tree(root, 0);
     // if (argc > 1) { 
     //     if (!(yyin = fopen(argv[1], "r"))) { 
     //         perror(argv[1]); 
@@ -23,6 +26,14 @@ int main(int argc, char** argv) {
     //     } 
     // } 
     // while (yylex() != 0); 
+
+#ifdef PRINT_TREE
+    if (lexError == 0 && synError == 0) print_tree(root, 0);
+#endif
+
+    if (lexError == 0 && synError == 0) { // 语法树正确构建
+        semantic_check(root); // 语义分析
+    }
     return 0; 
 }
 
