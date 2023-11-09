@@ -23,6 +23,8 @@ Type Exp(node_t* node);
 
 /* Fill in Symbol Table */
 FieldList VarDec(node_t* node, Type type, int structflag);
+Function FunDec(node_t* node, Type type);
+FieldList VarList(node_t* node);
 Type StructSpecifier(node_t* node);
 
 #endif

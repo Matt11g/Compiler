@@ -164,7 +164,7 @@ void Stmt(node_t* node, Type ntype) {
 }
 
 Type Exp(node_t* node) {
-    // TODO: if NULL??
+    // TODO: if NULL??arithmeticarithmeticarithmetic
     if (strcmp(node->type_name, "Exp") != 0) assert(0);
     node_t *n = node->fir;
     if (strcmp(n->type_name, "ID") == 0) {
@@ -222,7 +222,15 @@ Type Exp(node_t* node) {
         return Exp(n->sib);
     }
     else if (strcmp(n->type_name, "MINUS") == 0) {
-        return Exp(n->sib);
+        //仅有int型和float型变量才能参与算术运算。
+        Type expType = Exp(n->sib);
+        if (expType == NULL) return NULL;
+        if (expType->kind != BASIC) {
+            assert(expType->u.basic == 1 || expType->u.basic == 2);
+            printf("Error type 7 at Line %d: only INT and FLOAT can do arithmetic calculations (MINUS operator) \n", n->lineno);
+            return NULL;
+        }
+        return expType;
     }
     else if (strcmp(n->type_name, "NOT") == 0) {
         return Exp(n->sib);
@@ -269,47 +277,102 @@ Type Exp(node_t* node) {
             }
             return exp1Type;
         }
-        else if (strcmp(n->sib->type_name, "PLUS") == 0) {
+        else if (strcmp(n->sib->type_name, "PLUS") == 0 || strcmp(n->sib->type_name, "MINUS") == 0 || strcmp(n->sib->type_name, "STAR") == 0 || strcmp(n->sib->type_name, "DIV") == 0 || strcmp(n->sib->type_name, "RELOP") == 0) {
             //仅有int型变量才能进行逻辑运算或者作为if和while语句的条件；仅有int型和float型变量才能参与算术运算。
+            if (Type_check(exp1Type, exp2Type) == 0) {
+                printf("Error type 7 at Line %d: mismatched types in arithmetic calculations\n", n->lineno);
+                return NULL;
+            }
+            if (exp1Type->kind != BASIC) {
+                printf("Error type 7 at Line %d: only INT and FLOAT can do arithmetic calculations\n", n->lineno);
+                return NULL;
+            }
+            if (strcmp(n->sib->type_name, "RELOP") == 0) return newType(INTType); // RELOP
+            return exp1Type;
+        }
+        else if (strcmp(n->sib->type_name, "AND") == 0 || strcmp(n->sib->type_name, "OR") == 0) {
+            if (Type_check(exp1Type, exp2Type) == 0) {
+                printf("Error type 7 at Line %d: mismatched types in logical calculations\n", n->lineno);
+                return NULL;
+            }
+            if (!(exp1Type->kind == BASIC && exp1Type->u.basic == 1)) {
+                printf("Error type 7 at Line %d: only INT can do logical calculations\n", n->lineno);
+                return NULL;
+            }
+            return exp1Type;
         }
         else assert(0);
     }
     else assert(0);
-
+    assert(0);
 }
 
 FieldList VarDec(node_t* node, Type type, int structflag) { // 为什么返回FieldList
-    // VarDec -> ID | ID LB INT RB
+    // VarDec -> ID | VarDec LB INT RB
     node_t *n = node->fir;
     if (strcmp(n->type_name, "ID") == 0) {
-
+        if (structflag == 0 && checkSymbol(n->id) == 1) { // 为什么不是结构体  struct tag a; ???????????????
+            printf("Error type 3 at Line %d: redefined variable\n", n->lineno); 
+        }
+        FieldList field = (FieldList)malloc(sizeof(struct FieldList_));
+        strcpy(field->name, n->id);
+        field->tail = NULL; // ??
+        field->type = type;
+        insertSymbol(n->id, type); /*TODO: n的符号名及类型插入全局符号表中;*/
+        return field;
     }
     else if (strcmp(n->type_name, "VarDec") == 0) {
-
+        Type arrType = newType(ArrayType);
+        assert(strcmp(n->sib->sib->type_name, "INT") == 0);
+        arrType->u.array.size = n->sib->sib->num.type_int;
+        arrType->u.array.elem = type;
+        FieldList f = VarDec(n, arrType, structflag);
+        return f;
     }
     else assert(0);
-    // if (n类型是ID && n的符号名未在符号表中出现[包括结构体名]) {
-    //     构建FieldList变量 f;
-    //     初始化f的名称、类型、tail域信息;
-    //     n的符号名及类型插入全局符号表中;
-    //     返回f;
-    // } else { // 数组定义
-    //     构建Type变量arrType;
-    //     初始化arrType的kind、u.array的size/elem类型;
-    //     递归调用VarDec(n, arrType)返回FiedList变量f;   
-    //     返回f;
-    // }
 }
 
-Function FunDec(node_t* *node, Type type){
-    // 提取node的孩子节点n;
-    // 构建函数类型变量Fucntion func;
-    // 初始化func的name、line、type（返回值类型）;
-    // if (n包含参数) {
-    //     调用VarList遍历n的参数并返回FieldList变量f;
-    //     设置func的param域的值为f;
-    // } else { // 无参
-    //     设置func的param域的值为NULL;
-    // }
-    // 返回func;
+Function FunDec(node_t* node, Type type){
+    // Func -> ID LP VarList RP | ID LP RP
+    assert(node);
+    node_t* n = node->fir;
+    if (checkSymbol(n->id) != 0) { // 还是用check_func??
+        printf("Error type 4 at Line %d: redefined function\n", n->lineno);
+        return NULL;
+    }
+    Function func = (Function)malloc(sizeof(struct Function_));
+    strcpy(func->name, n->id);
+    func->line = n->lineno;
+    func->type = type;
+    Type funcType = newType(FuncType);
+    funcType->u.function = *func; // 小心被delete，指向相同的地址了，很危险！！！！！
+    insertSymbol(n->id, funcType); 
+    /* newScope */
+    if (strcmp(n->sib->sib->type_name, "VarList") == 0) {
+        func->param = VarList(n); 
+        return func;
+    }
+    else if (strcmp(n->sib->sib->type_name, "RP") == 0) {
+        func->param = NULL;
+        return func;
+    }
+    else assert(0);
+}
+
+FieldList VarList(node_t* node) {
+    node_t* n = node->fir;
+    FieldList f = (FieldList)malloc(sizeof(struct FieldList_));
+    /*TODO*/
+}
+
+FieldList Dec(node_t* node, Type type, int structflag){
+    node_t* n = node->fir;
+    if (NULL != n->sib) {
+        assert(strcmp(n->sib->sib->type_name, "Exp") == 0);
+        Type expType = Exp(n->sib->sib);
+        if (Type_check(type, expType) == 0) {
+            printf("Error type 5 at Line %d: assign mismatched Type\n", n->lineno);
+            return NULL;
+        }
+    }
 }

@@ -24,11 +24,10 @@ Type newType(enum TypeID typeId) {
             break;
 
         case ArrayType:
-            assert(0);
-            // type->kind = ARRAY;
-            // type->u.array.elem = NULL;
-            // type->u.array.size = -1;
-            // type->assign = BOTH;
+            type->kind = ARRAY;
+            type->u.array.elem = NULL;
+            type->u.array.size = -1;
+            type->assign = BOTH; //??
             break;
         
         case StructType:
@@ -41,10 +40,8 @@ Type newType(enum TypeID typeId) {
         
         case FuncType:
             assert(0);
-            // type->kind = FUNCTION;
-            // type->u.function = NULL;
-            // type->assign = RIGHT;
-            /*函数返回值类型是right*/
+            type->kind = FUNCTION;
+            type->assign = RIGHT; /*函数返回值类型是INT, ????????????*/
             break;
             
         default:
