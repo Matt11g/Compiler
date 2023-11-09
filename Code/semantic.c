@@ -92,24 +92,34 @@ Type Specifier(node_t* node) {
 
 Type StructSpecifier(node_t* node) {
     // StructSpecifier -> STRUCT OptTag LC DefList RC | STRUCT TAG
+    // OptTag -> ID | epsilon, Tag -> ID
     node_t *n = node->fir; assert(n);
     if (n->sib->sib == NULL) { // STRUCT TAG, 声明 
         assert(strcmp(n->sib->type_name, "Tag") == 0);
-        //
-    }
-    else if (strcmp(n->sib->type_name, "OptTag") == 0) {
-        Type sType = newType(StructType);
-        strcpy(sType->u.structure.name, n->fir->fir->id);
-        if (checkSymbol(sType->u.structure.name)) {
-            printf("Error type 16 at Line %d: %s\n", n->fir->fir->lineno, sType->u.structure.name); // 结构体重名
+        Type type = Type_get(n->sib->fir->id);
+        if (type == NULL || type->kind != STRUCT_CONTAINER) { //checkSymbol(n->sib->fir->id) == 0好还是Type_get好呢
+            printf("Error type 17 at Line %d: undefined struct type\n", n->sib->fir->lineno); // 结构体重名
             return NULL;
         }
-        insertSymbol(sType->u.structure.name, sType);
-        //sType->u.structure.domain = NULL; // TODO
-        
-        //     DefList(n->sib->sib->sib); // DefList(n的子节点, 1)
-        //     插入符号表中;
-        //     返回sType
+        // DEBUG:  ..  一些问题
+        return type;
+    }
+    else if (strcmp(n->sib->type_name, "OptTag") == 0) { //定义
+        if (checkField(n->sib->fir->id)) { // DEBUG： 对类型的定义可否在语句块内重新定义？
+            printf("Error type 16 at Line %d: multiple definitions of struct type\n", n->sib->fir->lineno); // 结构体重名
+            return NULL; // DEBUG: 还是不返回？？
+        }
+        Type sType = newType(StructType); //WRONG, TODO-------------------------------------------<<
+        assert(strcmp(n->sib->fir->type_name, "ID") == 0);
+        strcpy(sType->u.structure.name, n->sib->fir->id);
+
+        /*newScope*/
+        FieldList domain = DefList(n->sib->sib->sib); /*TODO------------------------------*/
+        /*deleteScope*/
+
+        sType->u.structure.domain = DefList(n->sib->sib->sib); /*TODO------------------------------*/ //     DefList(n->sib->sib->sib); // DefList(n的子节点, 1)
+        insertSymbol(sType->u.structure.name, sType);//     插入符号表中;
+        return sType;//     返回sType
     }
     else if (strcmp(n->sib->type_name, "LC") == 0) { // 匿名结构体
     //     与一般结构体定义类似，但名称可以定义为随机值或者置为NULL;
@@ -311,15 +321,16 @@ FieldList VarDec(node_t* node, Type type, int structflag) { // 为什么返回Fi
     // VarDec -> ID | VarDec LB INT RB
     node_t *n = node->fir;
     if (strcmp(n->type_name, "ID") == 0) {
-        if (structflag == 0 && checkSymbol(n->id) == 1) { // 为什么不是结构体  struct tag a; ???????????????
-            printf("Error type 3 at Line %d: redefined variable\n", n->lineno); 
+        if (checkField(n->id) == 1) {
+            if (structflag == 0) printf("Error type 3 at Line %d: redefined variable\n", n->lineno);
+            else printf("Error type 15 at Line %d: redefine member in structure field\n", n->lineno);
         }
+        else insertSymbol(n->id, type); /*TODO: n的符号名及类型插入全局符号表中;*/
         FieldList field = (FieldList)malloc(sizeof(struct FieldList_));
         strcpy(field->name, n->id);
-        field->tail = NULL; // ??
+        field->tail = NULL;
         field->type = type;
-        insertSymbol(n->id, type); /*TODO: n的符号名及类型插入全局符号表中;*/
-        return field;
+        return field; // 出错/不是struct也先返回好了，应该不会插入，防止中断(但是涉及内存释放问题) ||||| 思考：field list重复怎么办？
     }
     else if (strcmp(n->type_name, "VarDec") == 0) {
         Type arrType = newType(ArrayType);
@@ -332,11 +343,44 @@ FieldList VarDec(node_t* node, Type type, int structflag) { // 为什么返回Fi
     else assert(0);
 }
 
+FieldList Dec(node_t* node, Type type, int structflag){
+    node_t* n = node->fir;
+    // Dec -> VarDec | VarDec ASSIGNOP Exp
+    FieldList f = VarDec(n, type, structflag); // 是否应该传type？type是什么？
+    if (NULL == n->sib) {
+        return f;/*insertField(f)，需判断是否重复*/
+    }
+    else {
+        assert(strcmp(n->sib->sib->type_name, "Exp") == 0);
+        if (structflag) {
+            printf("Error type 15 at Line %d: structure field type cannot be initialized\n", n->lineno);
+        }
+        else {
+            Type expType = Exp(n->sib->sib);
+            if (NULL == expType) return NULL;
+            if (Type_check(type, expType) == 0) {
+                printf("Error type 5 at Line %d: assign mismatched Type\n", n->lineno);
+                return NULL;
+            }
+        }
+        return f; /*insertField(f)，still try to insert the field*/
+    }
+}
+
+FieldList DecList(node_t* node, Type type, int structflag) {
+    assert(strcmp(node->type_name, "DecList") == 0);
+    node_t* n = node->fir;
+    FieldList f = Dec(n, type, structflag);
+    if (NULL != n->sib) f->tail = DecList(n->sib->sib, type, structflag);
+    else f->tail = NULL;
+    return f;
+}
+
 Function FunDec(node_t* node, Type type){
     // Func -> ID LP VarList RP | ID LP RP
     assert(node);
     node_t* n = node->fir;
-    if (checkSymbol(n->id) != 0) { // 还是用check_func??
+    if (checkField(n->id) != 0) { // 还是用check_func??
         printf("Error type 4 at Line %d: redefined function\n", n->lineno);
         return NULL;
     }
@@ -360,19 +404,18 @@ Function FunDec(node_t* node, Type type){
 }
 
 FieldList VarList(node_t* node) {
+    assert(strcmp(node->type_name, "VarList") == 0);
     node_t* n = node->fir;
-    FieldList f = (FieldList)malloc(sizeof(struct FieldList_));
-    /*TODO*/
+    FieldList f = ParamDec(n);
+    if (NULL != n->sib) f->tail = VarList(n->sib->sib);
+    else f->tail = NULL;
+    return f;
 }
 
-FieldList Dec(node_t* node, Type type, int structflag){
+FieldList ParamDec(node_t* node) { //仔细check
     node_t* n = node->fir;
-    if (NULL != n->sib) {
-        assert(strcmp(n->sib->sib->type_name, "Exp") == 0);
-        Type expType = Exp(n->sib->sib);
-        if (Type_check(type, expType) == 0) {
-            printf("Error type 5 at Line %d: assign mismatched Type\n", n->lineno);
-            return NULL;
-        }
-    }
+    // ParamDec -> Specifier VarDec
+    Type specType = Specifier(n);
+    FieldList f = VarDec(n->sib, specType, 0); /*NULL == specType照样插入，不知道有没有问题*/
+    return f;
 }

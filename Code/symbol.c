@@ -31,17 +31,20 @@ Type newType(enum TypeID typeId) {
             break;
         
         case StructType:
-            assert(0);
             type->kind = STRUCTURE;
             type->u.structure.domain = NULL;
             type->assign = BOTH; // Structure里面的也算structure吗，不算吧, BOTH!!!!!
-            Type sType = (Type)malloc(sizeof(struct Type_));
             break;
         
         case FuncType:
-            assert(0);
             type->kind = FUNCTION;
             type->assign = RIGHT; /*函数返回值类型是INT, ????????????*/
+            break;
+        
+        case StructContainerType:
+            type->kind = STRUCT_CONTAINER;
+            type->u.structure.domain = NULL;
+            type->assign = BOTH; // Structure里面的也算structure吗，不算吧, BOTH!!!!!
             break;
             
         default:
@@ -64,10 +67,17 @@ int Type_check(Type t1, Type t2) {
         return 0;     // 基本类型不同
     if (t1->kind == ARRAY) // 逐个比对数组元素类型
         return Type_check(t1->u.array.elem, t2->u.array.elem);
-    if (t1->kind == STRUCTURE)
+    if (t1->kind == STRUCTURE) {
         if (t2->kind != STRUCTURE)
             return 0;
         return !strcmp(t1->u.structure.name, t2->u.structure.name);
+    }
+    if (t1->kind == STRUCT_CONTAINER) { //??
+        if (t2->kind != STRUCTURE)
+            return 0;
+        return !strcmp(t1->u.structure.name, t2->u.structure.name);
+    }
+
 }
 
 int Param_check(FieldList p1, FieldList p2) {
@@ -100,6 +110,16 @@ int insertSymbol(char *name, Type type){
 }
 
 int checkSymbol(char *name){
+    unsigned int hash = hashFunc(name);
+    // for(HashNode *node = gTable[hash]; node!=NULL; node = node->next){
+    //     if(strcmp(node->name, name) == 0){
+    //         return 1;
+    //     }
+    // }
+    // return 0;
+}
+
+int checkField(char *name){
     unsigned int hash = hashFunc(name);
     // for(HashNode *node = gTable[hash]; node!=NULL; node = node->next){
     //     if(strcmp(node->name, name) == 0){

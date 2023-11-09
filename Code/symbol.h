@@ -10,14 +10,15 @@ typedef struct FieldList_* FieldList;
 typedef struct Structure_* Structure;
 typedef struct Function_* Function;
 
-enum TypeID {INTType, FLOATType, ArrayType, StructType, FuncType };
+enum TypeID {INTType, FLOATType, ArrayType, StructType, FuncType, StructContainerType};
 
 struct Type_{
     enum {
         BASIC,     // variable
         ARRAY,     // array
         STRUCTURE, // structure
-        FUNCTION   // function
+        FUNCTION,   // function
+        STRUCT_CONTAINER
     } kind;
     union{
         int basic; // int(1), float(2)
@@ -95,6 +96,7 @@ static inline unsigned int hashFunc(char *key) {
 
 int insertSymbol(char *name, Type type);
 int checkSymbol(char *name);
+int checkField(char *name);
 Type Type_get(char *name);
 Type Type_get_f(FieldList domain, char *name);
 
