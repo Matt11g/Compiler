@@ -7,6 +7,7 @@ void semantic_check(node_t* root) {
 }
 
 void ExtDefList(node_t* node) {
+    // ExtDefList -> ExtDef ExtDefList | epsilon
     if (NULL == node) return;
     ExtDef(node->fir);
     ExtDefList(node->fir->sib);
@@ -17,16 +18,17 @@ void ExtDef(node_t* node) {
     // ExtDef -> Specifier ExtDecList SEMI
     // ExtDef -> Specifier SEMI
     // ExtDef -> Specifier FunDec CompSt
-    node_t* spec = node->fir, * n = spec->sib;
+    node_t* spec = node->fir, *n = spec->sib;
     if (strcmp(n->type_name, "SEMI") == 0) {
         ExtSpecifier(spec);
     }
     else if (strcmp(n->type_name, "FunDec") == 0) {
-        /**/
+        Type varType = Specifier(spec);
+        Function func = FunDec(n, varType);
     }
     else if (strcmp(n->type_name, "ExtDecList") == 0) {
         Type varType = Specifier(spec);
-        if (NULL != varType) ExtDec(n, varType);
+        if (NULL != varType) /*暂时就这样吧*/ ExtDecList(n, varType, 0); //WHAT??????????
     }
     
 
@@ -48,20 +50,23 @@ void ExtDef(node_t* node) {
     // 声明函数;
 }
 
+FieldList ExtDecList(node_t* node, Type type, int structflag) {
+    assert(strcmp(node->type_name, "ExtDecList") == 0);
+    node_t* n = node->fir;
+    FieldList f = VarDec(n, type, structflag);
+    if (NULL != n->sib) f->tail = ExtDecList(n->sib->sib, type, structflag);
+    else f->tail = NULL;
+    return f;
+}
+
 void ExtSpecifier(node_t* node) {
-    // ExtDef -> Specifier SEMI
+    // for ExtDef -> Specifier SEMI
     node_t* n = node->fir;
     if (strcmp(n->type_name, "TYPE") == 0) {
-        return;
+        return; // int;的情况
     }
     else if (strcmp(n->type_name, "StructSpecifier") == 0) {
-        node_t* child = n->fir; assert(child);
-        if (strcmp(child->sib->type_name, "OptTag") == 0) {
-            /*TODO*/ //!!!!maybe NULL
-        }
-        else if (strcmp(child->sib->type_name, "Tag") == 0) {
-            return;// 声明不会重复，而且可以存在空定义
-        }
+        ExtStructSpecifier(n);
     }
     else assert(0);
 }
@@ -76,26 +81,26 @@ Type Specifier(node_t* node) {
         else assert(0);
     }
     else if (strcmp(n->type_name, "StructSpecifier") == 0) {
-        StructSpecifier(n);
-        // node_t* child = n->fir; assert(child);
-        // if (strcmp(child->sib->type_name, "OptTag") == 0) {
-        //     //
-        // }
-        // else if (strcmp(child->sib->type_name, "Tag") == 0) {
-        //     //Type type = Type_get(child->sib->id); //!!!!!!!!!!!!!!!!!!!!!
-
-        // }
-        // else assert(0);
+        return StructSpecifier(n);
     }
     else assert(0);
+}
+
+void ExtStructSpecifier(node_t* node) {
+    // StructSpecifier -> STRUCT OptTag LC DefList RC | STRUCT TAG
+    // OptTag -> ID | epsilon, Tag -> ID
+    node_t *n = node->fir; assert(n);
+    if (strcmp(n->sib->type_name, "Tag") == 0) { // STRUCT TAG, 声明  
+        return; //////////////////////////////////////////////////////////
+    }
+    assert(0);//TBD
 }
 
 Type StructSpecifier(node_t* node) {
     // StructSpecifier -> STRUCT OptTag LC DefList RC | STRUCT TAG
     // OptTag -> ID | epsilon, Tag -> ID
     node_t *n = node->fir; assert(n);
-    if (n->sib->sib == NULL) { // STRUCT TAG, 声明 
-        assert(strcmp(n->sib->type_name, "Tag") == 0);
+    if (strcmp(n->sib->type_name, "Tag") == 0) { // STRUCT TAG, 声明  
         Type type = Type_get(n->sib->fir->id);
         if (type == NULL || type->kind != STRUCT_CONTAINER) { //checkSymbol(n->sib->fir->id) == 0好还是Type_get好呢
             printf("Error type 17 at Line %d: undefined struct type\n", n->sib->fir->lineno); // 结构体重名
@@ -114,27 +119,54 @@ Type StructSpecifier(node_t* node) {
         strcpy(sType->u.structure.name, n->sib->fir->id);
 
         /*newScope*/
-        FieldList domain = DefList(n->sib->sib->sib); /*TODO------------------------------*/
-        /*deleteScope*/
+        sType->u.structure.domain = DefList(n->sib->sib->sib, 1);  
+        /*deleteScope*/ //会不会把一些重要的Type free掉了：struct有FieldList，但还是有风险；函数直接free没问题（可见两者有区别）
 
-        sType->u.structure.domain = DefList(n->sib->sib->sib); /*TODO------------------------------*/ //     DefList(n->sib->sib->sib); // DefList(n的子节点, 1)
-        insertSymbol(sType->u.structure.name, sType);//     插入符号表中;
-        return sType;//     返回sType
+        insertSymbol(sType->u.structure.name, sType);
+        return sType;
     }
-    else if (strcmp(n->sib->type_name, "LC") == 0) { // 匿名结构体
-    //     与一般结构体定义类似，但名称可以定义为随机值或者置为NULL;
-    //     插入符号表并返回结构体类型sType;
+    else if (strcmp(n->sib->type_name, "LC") == 0) { // 匿名结构体!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        Type sType = newType(StructType); //WRONG, TODO-------------------------------------------<<
+        srand((unsigned)time(NULL));
+        for (int i = 0; i < 32; i++) {
+            sType->u.structure.name[i] = rand() % 26 + 'a';
+        }
+        sType->u.structure.name[32] = '\0';
+        /*newScope*/
+        sType->u.structure.domain = DefList(n->sib->sib->sib, 1);  
+        /*deleteScope*/ //会不会把一些重要的Type free掉了：struct有FieldList，但还是有风险；函数直接free没问题（可见两者有区别）
+
+        /*condition??*/insertSymbol(sType->u.structure.name, sType);
+        return sType;
     }
     else assert(0);
 }
 
+FieldList Def(node_t* node, int structflag) {
+    // Def -> Specifier DecList SEMI
+    node_t* n = node->fir;
+    Type spec = Specifier(n);
+    return DecList(n->sib, spec, structflag);
+}
+
+FieldList DefList(node_t* node, int structflag) { // 可能在STRUCT里 / CompSt
+    // DefList -> Def DefList | epsilon
+    assert(strcmp(node->type_name, "DefList") == 0);
+    if (NULL == node) return NULL; // ???????????????????????????????
+    node_t* n = node->fir;
+    FieldList f = Def(n, structflag);
+    assert(f);
+    f->tail = DefList(n->sib, structflag);
+    return f;
+    // DEBUG: 检查Type_get_f, 是否需要完善，调用是否正确
+}
 
 void CompSt(node_t* node, Type ntype) {
     // CompSt -> LC DefList StmtList RC
-    /*newScope()*/
+    /*newScope()*/ // 如果是function的CompSt则好像不需要，struct的CompSt需要
     if (NULL == node) return;
     assert (strcmp(node->fir->sib->type_name, "DefList") == 0);
-    DefList(node->fir->sib, NULL);
+    DefList(node->fir->sib, 0/*NULL??, 不在struct里*/);
     assert (strcmp(node->fir->sib->sib->type_name, "StmtList") == 0);
     StmtList(node->fir->sib->sib, ntype);
     /*deleteScope()*/
@@ -151,7 +183,8 @@ void Stmt(node_t* node, Type ntype) {
     }
     else if (strcmp(n->type_name, "RETURN") == 0) {
         Type expType = Exp(n->sib);
-        if (expType && Type_check(expType, ntype) == 0) {
+        // Exp fails don't report return type error
+        if (/*(NULL == expType) ||*/ (expType && Type_check(expType, ntype) == 0)) {
             printf("Error type 8 at Line %d: error return type %d\n", n->lineno, expType->kind); // 返回值错误
         }
         //freeType(expType); 可能存在内存泄漏，例如 return 1 || 但如果不copyType的话free会导致函数的返回值被删除 a = m()  return m()
@@ -330,7 +363,7 @@ FieldList VarDec(node_t* node, Type type, int structflag) { // 为什么返回Fi
         strcpy(field->name, n->id);
         field->tail = NULL;
         field->type = type;
-        return field; // 出错/不是struct也先返回好了，应该不会插入，防止中断(但是涉及内存释放问题) ||||| 思考：field list重复怎么办？
+        return field; // 出错/不是struct也先返回好了，应该不会插入，防止中断(但是涉及内存释放问题) ||||| 思考：field list重复怎么办？  插入好像也没问题，除非两个类型不一致，暂时不管，可在DecList改
     }
     else if (strcmp(n->type_name, "VarDec") == 0) {
         Type arrType = newType(ArrayType);
@@ -360,7 +393,9 @@ FieldList Dec(node_t* node, Type type, int structflag){
             if (NULL == expType) return NULL;
             if (Type_check(type, expType) == 0) {
                 printf("Error type 5 at Line %d: assign mismatched Type\n", n->lineno);
-                return NULL;
+                // return NULL; // modified by Zn
+                // return NULL; // modified by Zn
+                // return NULL; // modified by Zn
             }
         }
         return f; /*insertField(f)，still try to insert the field*/

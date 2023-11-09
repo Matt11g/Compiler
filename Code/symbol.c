@@ -32,12 +32,17 @@ Type newType(enum TypeID typeId) {
         
         case StructType:
             type->kind = STRUCTURE;
+            type->u.structure.name[0] = '\0';
             type->u.structure.domain = NULL;
             type->assign = BOTH; // Structure里面的也算structure吗，不算吧, BOTH!!!!!
             break;
         
         case FuncType:
             type->kind = FUNCTION;
+            type->u.function.name[0] = '\0';
+            type->u.function.line = -1;
+            type->u.function.param = NULL;
+            type->u.function.type = NULL;
             type->assign = RIGHT; /*函数返回值类型是INT, ????????????*/
             break;
         
@@ -133,9 +138,10 @@ Type Type_get(char *name) {
 
 }
 
-Type Type_get_f(FieldList domain, char *name) {
+Type Type_get_f(FieldList domain, char *name) { // for struct field
     if (NULL == domain) return NULL;
     assert(NULL != domain->name);
     if (strcmp(domain->name, name) == 0) return domain->type;
     return Type_get_f(domain->tail, name);
+    // FieldList marvelous  !!
 }

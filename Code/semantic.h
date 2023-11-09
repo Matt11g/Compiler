@@ -4,6 +4,7 @@
 #include "syntaxTree.h"
 #include "symbol.h"
 #include <assert.h>
+#include <time.h>
 
 /* Entry */
 void semantic_check(node_t* root);
