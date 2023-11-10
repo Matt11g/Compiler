@@ -26,6 +26,7 @@ void ExtDef(node_t* node) {
     }
     else if (strcmp(n->type_name, "FunDec") == 0) {
         Type varType = Specifier(spec);
+        varType->assign = RIGHT; // LAB-E2: 函数不能当左值
         Function func = FunDec(n, varType);
         CompSt(n->sib, varType);
     }
@@ -110,9 +111,9 @@ void ExtStructSpecifier(node_t* node) {
         strcpy(sType->u.structure.name, n->sib->fir->id);
 
         insertSymbol(sType->u.structure.name, sType); // Zn: 先insert结构体的名字便于调用
-        newScope();
+        //newScope();
         sType->u.structure.domain = DefList(n->sib->sib->sib, 1);  
-        deleteScope(); //会不会把一些重要的Type free掉了：struct有FieldList，但还是有风险；函数直接free没问题（可见两者有区别）
+        //deleteScope(); //会不会把一些重要的Type free掉了：struct有FieldList，但还是有风险；函数直接free没问题（可见两者有区别）
     }
     else if (strcmp(n->sib->type_name, "LC") == 0) { // 匿名结构体!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         /*newScope*/
@@ -148,9 +149,9 @@ Type StructSpecifier(node_t* node) {
         strcpy(sType->u.structure.name, n->sib->fir->id);
 
         insertSymbol(sType->u.structure.name, sType); // Zn: 先insert结构体的名字便于调用
-        newScope();
+        //newScope();
         sType->u.structure.domain = DefList(n->sib->sib->sib, 1);  
-        deleteScope(); //会不会把一些重要的Type free掉了：struct有FieldList，但还是有风险；函数直接free没问题（可见两者有区别）
+        //deleteScope(); //会不会把一些重要的Type free掉了：struct有FieldList，但还是有风险；函数直接free没问题（可见两者有区别）
 
         return sType;
     }
@@ -161,10 +162,10 @@ Type StructSpecifier(node_t* node) {
             sType->u.structure.name[i] = rand() % 26 + 'a';
         }
         sType->u.structure.name[32] = '\0';
-        newScope();
+        //newScope();
         insertSymbol(sType->u.structure.name, sType);
         sType->u.structure.domain = DefList(n->sib->sib, 1);  
-        deleteScope(); //会不会把一些重要的Type free掉了：struct有FieldList，但还是有风险；函数直接free没问题（可见两者有区别）
+        //deleteScope(); //会不会把一些重要的Type free掉了：struct有FieldList，但还是有风险；函数直接free没问题（可见两者有区别）
 
         /*condition??*/
         return sType;
@@ -176,6 +177,7 @@ FieldList Def(node_t* node, int structflag) {
     // Def -> Specifier DecList SEMI
     node_t* n = node->fir;
     Type spec = Specifier(n);
+    //if (spec->kind == STRUCTURE) printf("HERE: %s\n", spec->u.structure.name);
     return DecList(n->sib, spec, structflag);
 }
 
@@ -194,7 +196,7 @@ FieldList DefList(node_t* node, int structflag) { // 可能在STRUCT里 / CompSt
 
 void CompSt(node_t* node, Type ntype) {
     // CompSt -> LC DefList StmtList RC
-    /*newScope()*/ // 如果是function的CompSt则好像不需要，struct的CompSt需要
+    //newScope(); // 暂时如此!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!如果是function的CompSt则好像不需要，struct的CompSt需要
     assert(node && strcmp(node->type_name, "CompSt") == 0); //<---------------------------均可加入
     node_t* n = node->fir;
     if (NULL == node) return;
@@ -224,11 +226,13 @@ void StmtList(node_t* node, Type ntype) {
 
 void Stmt(node_t* node, Type ntype) {
     if (NULL == node) return;
+    assert(strcmp(node->type_name, "Stmt") == 0);
     node_t *n = node->fir;
     if (strcmp(n->type_name, "Exp") == 0) {
         Exp(n);
         //freeType(free_type);
     } else if (strcmp(n->type_name, "CompSt") == 0) {
+        newScope();//here--------------------------
         CompSt(n, ntype);
     }
     else if (strcmp(n->type_name, "RETURN") == 0) {
@@ -241,12 +245,13 @@ void Stmt(node_t* node, Type ntype) {
     }
     else if (strcmp(n->type_name, "WHILE") == 0 || strcmp(n->type_name, "IF") == 0) { // if 类似
         Type conditionType = Exp(n->sib->sib);
-        if (!(NULL != conditionType && conditionType->kind == BASIC && conditionType->u.basic == 1)) {
+        if (NULL == conditionType) return;
+        if (!(conditionType && conditionType->kind == BASIC && conditionType->u.basic == 1)) {
             printf("Error type 12 at Line %d: condition type is %d\n", n->sib->sib->lineno, conditionType->kind); 
-            assert(0);
         }
         //freeType(conditionType);
-        /*Type free_type = */Exp(n->sib->sib->sib->sib);
+        assert(n->sib->sib->sib->sib);
+        /*Type free_type = */Stmt(n->sib->sib->sib->sib, ntype);
         //freeType(free_type);
         if (NULL != n->sib->sib->sib->sib->sib) { 
             assert(strcmp(n->sib->sib->sib->sib->sib->type_name, "ELSE") == 0);
@@ -284,18 +289,18 @@ Type Exp(node_t* node) {
             }
             if (strcmp(n->sib->sib->type_name, "Args") == 0) {
                 FieldList param = Args(n->sib->sib);
-                if (!Param_check(param, funcType->u.function.param)) {
+                if (!Param_check(param, funcType->u.function->param)) {
                     printf("Error type 9 at Line %d: incompatible args in function %s\n", n->lineno, n->id);
-                    return NULL;
+                    //return NULL; // <=====Zn
                 }
-                return funcType->u.function.type;
+                return funcType->u.function->type; // 返回值类型
             }
             else if (strcmp(n->sib->sib->type_name, "RP") == 0) {
-                if (!Param_check(NULL, funcType->u.function.param)) {
+                if (!Param_check(NULL, funcType->u.function->param)) {
                     printf("Error type 9 at Line %d: incompatible args in function %s\n", n->lineno, n->id);
-                    return NULL;
+                    //return NULL; // <=====Zn
                 }
-                return funcType->u.function.type;
+                return funcType->u.function->type; // 返回值类型
             }
             else assert(0);
         }
@@ -457,7 +462,7 @@ FieldList Dec(node_t* node, Type type, int structflag) {
         }
         else {
             Type expType = Exp(n->sib->sib);
-            if (NULL == expType) return NULL;
+            //if (NULL == expType) return NULL; // 不准返回NULL!!
             if (Type_check(type, expType) == 0) {
                 printf("Error type 5 at Line %d: assign mismatched Type\n", n->lineno);
                 // return NULL; // modified by Zn
@@ -484,14 +489,14 @@ Function FunDec(node_t* node, Type type){
     node_t* n = node->fir;
     if (checkField(n->id) != 0) { // 还是用check_func??
         printf("Error type 4 at Line %d: redefined function\n", n->lineno);
-        return NULL;
+        //return NULL;
     }
     Function func = (Function)malloc(sizeof(struct Function_));
     strcpy(func->name, n->id);
     func->line = n->lineno;
     func->type = type;
     Type funcType = newType(FuncType);
-    funcType->u.function = *func; // 小心被delete，指向相同的地址了，很危险！！！！！
+    funcType->u.function = func; // 小心被delete，指向相同的地址了，很危险！！！！！
     insertSymbol(n->id, funcType);
     newScope(); //<----------------------------------------------------------------
     if (strcmp(n->sib->sib->type_name, "VarList") == 0) {
@@ -507,17 +512,23 @@ Function FunDec(node_t* node, Type type){
 
 FieldList VarList(node_t* node) {
     assert(strcmp(node->type_name, "VarList") == 0);
+    // VarList -> ParamDec COMMA VarList | ParamDec
     node_t* n = node->fir;
     FieldList f = ParamDec(n);
     if (NULL != n->sib) f->tail = VarList(n->sib->sib);
     else f->tail = NULL;
+
+    //if (f && f->type->kind == STRUCTURE) printf("HERE: %s\n", f->type->u.structure.name);
+
     return f;
 }
 
 FieldList ParamDec(node_t* node) { //仔细check
+    assert(strcmp(node->type_name, "ParamDec") == 0);
     node_t* n = node->fir;
     // ParamDec -> Specifier VarDec
     Type specType = Specifier(n);
+    //if (specType->kind == STRUCTURE) printf("HERE: %s\n", specType->u.structure.name);
     FieldList f = VarDec(n->sib, specType, 0); /*NULL == specType照样插入，不知道有没有问题*/
     return f;
 }

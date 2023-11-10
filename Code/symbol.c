@@ -35,10 +35,7 @@ Type newType(enum TypeID typeId) {
         
         case FuncType:
             type->kind = FUNCTION;
-            type->u.function.name[0] = '\0';
-            type->u.function.line = -1;
-            type->u.function.param = NULL;
-            type->u.function.type = NULL;
+            type->u.function = NULL;
             type->assign = RIGHT; /*函数返回值类型是INT, ????????????*/
             break;
         
@@ -60,17 +57,18 @@ Type newType(enum TypeID typeId) {
 // }
 
 int Type_check(Type t1, Type t2) {
-    if (t1 == NULL && t2 == NULL)
-        return 1; // 都为空一致
-    if (t1->kind == BASIC)
-        if (t1->u.basic == t2->u.basic)
-            return 1; // 基本类型相同
+    if (t1 == NULL && t2 == NULL) return 1; // 都为空一致
+    if (t1 == NULL && t2 != NULL || t1 != NULL && t2 == NULL) return 0; //<---------------------by Zn
+    if (t1->kind == BASIC) {
+        if (t1->u.basic == t2->u.basic) return 1; // 基本类型相同
         return 0;     // 基本类型不同
-    if (t1->kind == ARRAY) // 逐个比对数组元素类型
+    }
+    if (t1->kind == ARRAY) {// 逐个比对数组元素类型
+        if (t2->kind != ARRAY) return 0;//<===============================================by Zn
         return Type_check(t1->u.array.elem, t2->u.array.elem);
-    if (t1->kind == STRUCTURE) {
-        if (t2->kind != STRUCTURE)
-            return 0;
+    }
+    if (t1->kind == STRUCTURE) {//<===============================================by Zn
+        if (t2->kind != STRUCTURE) return 0;
         return !strcmp(t1->u.structure.name, t2->u.structure.name);
     }
     // if (t1->kind == STRUCT_CONTAINER) { //??
@@ -118,6 +116,7 @@ symtab* deleteScope() {
     /*TODO: delete*/
     // freeMap(deleteSymtab->table);
     // free(deleteSymtab);
+    assert(head);
     return head;
 }
 

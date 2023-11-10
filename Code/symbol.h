@@ -36,7 +36,7 @@ struct Type_{
             int line;
             Type type;
             FieldList param;
-        } function;
+        }* function;
     } u;
     enum {
         LEFT,    // left value

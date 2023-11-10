@@ -239,7 +239,7 @@ Stmt : Exp SEMI {
         printf("Error Type B at Line %d: syntax error (WHILE Stmt)\n", @3.first_line);
     }
     | error SEMI {
-        synError = 1; if (@1.first_line != 8 && @1.last_column != 22) 
+        synError = 1; /*if (@1.first_line != 8 && @1.last_column != 22) */
         printf("Error Type B at Line %d: syntax error (Stmt)\n", @1.first_line);
     };
 
