@@ -79,6 +79,10 @@ ExtDef : Specifier ExtDecList SEMI {
         insert($$, $2);
         insert($$, $3);
     }
+    | Specifier FunDec error SEMI { // from Lab2
+        synError = 1;
+        printf("Error Type B at Line %d: Incomplete definition of function\n", @2.first_line);
+    }
     | error SEMI {
         synError = 1;
         printf("Error Type B at Line %d: syntax error (ExtDef)\n", @2.first_line);
