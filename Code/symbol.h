@@ -10,7 +10,7 @@ typedef struct FieldList_* FieldList;
 typedef struct Structure_* Structure;
 typedef struct Function_* Function;
 
-enum TypeID {INTType, FLOATType, ArrayType, StructType, FuncType, StructContainerType};
+enum TypeID {INTType, FLOATType, ArrayType, StructType, FuncType/*, StructContainerType*/};
 
 struct Type_{
     enum {
@@ -18,7 +18,7 @@ struct Type_{
         ARRAY,     // array
         STRUCTURE, // structure
         FUNCTION,   // function
-        STRUCT_CONTAINER
+        //STRUCT_CONTAINER
     } kind;
     union{
         int basic; // int(1), float(2)

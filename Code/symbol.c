@@ -42,11 +42,11 @@ Type newType(enum TypeID typeId) {
             type->assign = RIGHT; /*函数返回值类型是INT, ????????????*/
             break;
         
-        case StructContainerType:
-            type->kind = STRUCT_CONTAINER;
-            type->u.structure.domain = NULL;
-            type->assign = BOTH; // Structure里面的也算structure吗，不算吧, BOTH!!!!!
-            break;
+        // case StructContainerType:
+        //     type->kind = STRUCT_CONTAINER;
+        //     type->u.structure.domain = NULL;
+        //     type->assign = BOTH; // Structure里面的也算structure吗，不算吧, BOTH!!!!!
+        //     break;
             
         default:
             assert(0);
@@ -73,11 +73,11 @@ int Type_check(Type t1, Type t2) {
             return 0;
         return !strcmp(t1->u.structure.name, t2->u.structure.name);
     }
-    if (t1->kind == STRUCT_CONTAINER) { //??
-        if (t2->kind != STRUCTURE)
-            return 0;
-        return !strcmp(t1->u.structure.name, t2->u.structure.name);
-    }
+    // if (t1->kind == STRUCT_CONTAINER) { //??
+    //     if (t2->kind != STRUCTURE)
+    //         return 0;
+    //     return !strcmp(t1->u.structure.name, t2->u.structure.name);
+    // }
 
 }
 

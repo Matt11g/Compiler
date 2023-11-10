@@ -100,7 +100,29 @@ void ExtStructSpecifier(node_t* node) {
     if (strcmp(n->sib->type_name, "Tag") == 0) { // STRUCT TAG, 声明  
         return; //////////////////////////////////////////////////////////
     }
-    assert(0);//TBD
+    else if (strcmp(n->sib->type_name, "OptTag") == 0) { //定义
+        if (checkField(n->sib->fir->id)) { // DEBUG： 对类型的定义可否在语句块内重新定义？
+            printf("Error type 16 at Line %d: multiple definitions of struct type\n", n->sib->fir->lineno); // 结构体重名
+            return; // DEBUG: 还是不返回？？
+        }
+        Type sType = newType(StructType); //WRONG, TODO-------------------------------------------<<
+        assert(strcmp(n->sib->fir->type_name, "ID") == 0);
+        strcpy(sType->u.structure.name, n->sib->fir->id);
+
+        insertSymbol(sType->u.structure.name, sType); // Zn: 先insert结构体的名字便于调用
+        newScope();
+        sType->u.structure.domain = DefList(n->sib->sib->sib, 1);  
+        deleteScope(); //会不会把一些重要的Type free掉了：struct有FieldList，但还是有风险；函数直接free没问题（可见两者有区别）
+    }
+    else if (strcmp(n->sib->type_name, "LC") == 0) { // 匿名结构体!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        /*newScope*/
+        DefList(n->sib->sib, 1);  
+        /*deleteScope*/ //会不会把一些重要的Type free掉了：struct有FieldList，但还是有风险；函数直接free没问题（可见两者有区别）
+
+        /*condition??*/ //insertSymbol(sType->u.structure.name, sType);//<-----------------------
+    }
+    else assert(0);
+
 }
 
 Type StructSpecifier(node_t* node) {
@@ -109,7 +131,7 @@ Type StructSpecifier(node_t* node) {
     node_t *n = node->fir; assert(n);
     if (strcmp(n->sib->type_name, "Tag") == 0) { // STRUCT TAG, 声明  
         Type type = Type_get(n->sib->fir->id);
-        if (type == NULL || type->kind != STRUCT_CONTAINER) { //checkSymbol(n->sib->fir->id) == 0好还是Type_get好呢
+        if (type == NULL || type->kind != STRUCTURE) { //checkSymbol(n->sib->fir->id) == 0好还是Type_get好呢
             printf("Error type 17 at Line %d: undefined struct type\n", n->sib->fir->lineno); // 结构体重名
             return NULL;
         }
@@ -125,11 +147,11 @@ Type StructSpecifier(node_t* node) {
         assert(strcmp(n->sib->fir->type_name, "ID") == 0);
         strcpy(sType->u.structure.name, n->sib->fir->id);
 
-        /*newScope*/
+        insertSymbol(sType->u.structure.name, sType); // Zn: 先insert结构体的名字便于调用
+        newScope();
         sType->u.structure.domain = DefList(n->sib->sib->sib, 1);  
-        /*deleteScope*/ //会不会把一些重要的Type free掉了：struct有FieldList，但还是有风险；函数直接free没问题（可见两者有区别）
+        deleteScope(); //会不会把一些重要的Type free掉了：struct有FieldList，但还是有风险；函数直接free没问题（可见两者有区别）
 
-        insertSymbol(sType->u.structure.name, sType);
         return sType;
     }
     else if (strcmp(n->sib->type_name, "LC") == 0) { // 匿名结构体!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -139,11 +161,12 @@ Type StructSpecifier(node_t* node) {
             sType->u.structure.name[i] = rand() % 26 + 'a';
         }
         sType->u.structure.name[32] = '\0';
-        /*newScope*/
-        sType->u.structure.domain = DefList(n->sib->sib->sib, 1);  
-        /*deleteScope*/ //会不会把一些重要的Type free掉了：struct有FieldList，但还是有风险；函数直接free没问题（可见两者有区别）
+        newScope();
+        insertSymbol(sType->u.structure.name, sType);
+        sType->u.structure.domain = DefList(n->sib->sib, 1);  
+        deleteScope(); //会不会把一些重要的Type free掉了：struct有FieldList，但还是有风险；函数直接free没问题（可见两者有区别）
 
-        /*condition??*/insertSymbol(sType->u.structure.name, sType);
+        /*condition??*/
         return sType;
     }
     else assert(0);
@@ -159,6 +182,7 @@ FieldList Def(node_t* node, int structflag) {
 FieldList DefList(node_t* node, int structflag) { // 可能在STRUCT里 / CompSt
     // DefList -> Def DefList | epsilon
     if (NULL == node) return NULL; // ???????????????????????????????
+    assert(strcmp(node->type_name, "DefList") == 0);
     node_t* n = node->fir;
     FieldList f = Def(n, structflag);
     assert(f);
@@ -171,6 +195,7 @@ FieldList DefList(node_t* node, int structflag) { // 可能在STRUCT里 / CompSt
 void CompSt(node_t* node, Type ntype) {
     // CompSt -> LC DefList StmtList RC
     /*newScope()*/ // 如果是function的CompSt则好像不需要，struct的CompSt需要
+    assert(node && strcmp(node->type_name, "CompSt") == 0); //<---------------------------均可加入
     node_t* n = node->fir;
     if (NULL == node) return;
     if (strcmp(n->sib->type_name, "RC") == 0) {
@@ -192,8 +217,8 @@ void CompSt(node_t* node, Type ntype) {
 
 void StmtList(node_t* node, Type ntype) {
     if (NULL == node) return;
-    if (NULL == node->fir) return;
     Stmt(node->fir, ntype);
+    if (NULL == node->fir) return;
     StmtList(node->fir->sib, ntype);
 }
 
