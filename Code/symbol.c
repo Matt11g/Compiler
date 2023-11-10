@@ -103,7 +103,7 @@ void initTable() {
     head->par = NULL; head->table = NULL;
 }
 
-symtab* newsScope() {
+symtab* newScope() {
     symtab* stab = (symtab*)malloc(sizeof(symtab));
     stab->par = head;
     stab->table = NULL;

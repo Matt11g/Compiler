@@ -91,7 +91,7 @@ typedef struct _symtab {
     HashNode table;
 } symtab;
 
-symtab* newsScope();
+symtab* newScope();
 symtab* deleteScope();
 //void freeMap(HashNode node);
 

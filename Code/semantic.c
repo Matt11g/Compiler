@@ -11,6 +11,7 @@ void ExtDefList(node_t* node) {
     // ExtDefList -> ExtDef ExtDefList | epsilon
     if (NULL == node) return;
     ExtDef(node->fir);
+    if (NULL == node->fir->sib) return;
     ExtDefList(node->fir->sib);
 }
 
@@ -26,6 +27,7 @@ void ExtDef(node_t* node) {
     else if (strcmp(n->type_name, "FunDec") == 0) {
         Type varType = Specifier(spec);
         Function func = FunDec(n, varType);
+        CompSt(n->sib, varType);
     }
     else if (strcmp(n->type_name, "ExtDecList") == 0) {
         Type varType = Specifier(spec);
@@ -156,12 +158,12 @@ FieldList Def(node_t* node, int structflag) {
 
 FieldList DefList(node_t* node, int structflag) { // 可能在STRUCT里 / CompSt
     // DefList -> Def DefList | epsilon
-    assert(strcmp(node->type_name, "DefList") == 0);
     if (NULL == node) return NULL; // ???????????????????????????????
     node_t* n = node->fir;
     FieldList f = Def(n, structflag);
     assert(f);
-    f->tail = DefList(n->sib, structflag);
+    if (NULL != n->sib) f->tail = DefList(n->sib, structflag);
+    else f->tail = NULL;
     return f;
     // DEBUG: 检查Type_get_f, 是否需要完善，调用是否正确
 }
@@ -169,17 +171,28 @@ FieldList DefList(node_t* node, int structflag) { // 可能在STRUCT里 / CompSt
 void CompSt(node_t* node, Type ntype) {
     // CompSt -> LC DefList StmtList RC
     /*newScope()*/ // 如果是function的CompSt则好像不需要，struct的CompSt需要
+    node_t* n = node->fir;
     if (NULL == node) return;
-    assert (strcmp(node->fir->sib->type_name, "DefList") == 0);
-    DefList(node->fir->sib, 0/*NULL??, 不在struct里*/);
-    assert (strcmp(node->fir->sib->sib->type_name, "StmtList") == 0);
-    StmtList(node->fir->sib->sib, ntype);
+    if (strcmp(n->sib->type_name, "RC") == 0) {
+        deleteScope();//<--------------------------------------
+        return;
+    }
+    else if (strcmp(n->sib->type_name, "DefList") == 0) {
+        DefList(n->sib, 0/*NULL??, 不在struct里*/);
+        if (strcmp(n->sib->sib->type_name, "StmtList") == 0) StmtList(n->sib->sib, ntype);
+        deleteScope();//<--------------------------------------
+    }
+    else if (strcmp(n->sib->type_name, "StmtList") == 0) {
+        StmtList(n->sib, ntype);
+        deleteScope();//<--------------------------------------
+    }
+    else assert (0);
     /*deleteScope()*/
 }
 
 void StmtList(node_t* node, Type ntype) {
     if (NULL == node) return;
-    assert(node->fir);
+    if (NULL == node->fir) return;
     Stmt(node->fir, ntype);
     StmtList(node->fir->sib, ntype);
 }
@@ -197,7 +210,7 @@ void Stmt(node_t* node, Type ntype) {
         Type expType = Exp(n->sib);
         // Exp fails don't report return type error
         if (/*(NULL == expType) ||*/ (expType && Type_check(expType, ntype) == 0)) {
-            printf("Error type 8 at Line %d: error return type %d\n", n->lineno, expType->kind); // 返回值错误
+            printf("Error type 8 at Line %d: Type mismatched for return. \n", n->lineno); // 返回值错误
         }
         //freeType(expType); 可能存在内存泄漏，例如 return 1 || 但如果不copyType的话free会导致函数的返回值被删除 a = m()  return m()
     }
@@ -219,7 +232,7 @@ void Stmt(node_t* node, Type ntype) {
 }
 
 Type Exp(node_t* node) {
-    // TODO: if NULL??arithmeticarithmeticarithmetic
+    // TODO: if NULL??
     if (strcmp(node->type_name, "Exp") != 0) assert(0);
     node_t *n = node->fir;
     if (strcmp(n->type_name, "ID") == 0) {
@@ -323,11 +336,11 @@ Type Exp(node_t* node) {
         // 剩下的都是操作符
         if (strcmp(n->sib->type_name, "ASSIGNOP") == 0) {
             if (Type_check(exp1Type, exp2Type) == 0) {
-                printf("Error type 5 at Line %d: ASSIGN must have same type\n", n->lineno);
+                printf("Error type 5 at Line %d: Type mismatched for assignment.\n", n->lineno);
                 return NULL;
             }
             if (exp1Type->assign == RIGHT) {
-                printf("Error type 6 at Line %d: ASSIGN applied to non LEFT value\n", n->lineno);
+                printf("Error type 6 at Line %d: The left-hand side of an assignment must be a variable.\n", n->lineno);
                 return NULL;
             }
             return exp1Type;
@@ -454,10 +467,10 @@ Function FunDec(node_t* node, Type type){
     func->type = type;
     Type funcType = newType(FuncType);
     funcType->u.function = *func; // 小心被delete，指向相同的地址了，很危险！！！！！
-    insertSymbol(n->id, funcType); 
-    /* newScope */
+    insertSymbol(n->id, funcType);
+    newScope(); //<----------------------------------------------------------------
     if (strcmp(n->sib->sib->type_name, "VarList") == 0) {
-        func->param = VarList(n); 
+        func->param = VarList(n->sib->sib); 
         return func;
     }
     else if (strcmp(n->sib->sib->type_name, "RP") == 0) {
