@@ -1,12 +1,8 @@
 #include "symbol.h"
 #include <assert.h>
 
-HashNode *gTable[HASH_TABLE_SIZE + 2];
-HashNode *sTable[HASH_TABLE_SIZE + 2];
-
-void initTable() {
-    // 默认为NULL吗
-}
+HashNode gTable[HASH_TABLE_SIZE + 2];
+//HashNode sTable[HASH_TABLE_SIZE + 2];
 
 Type newType(enum TypeID typeId) {
     //仅有int型和float型变量才能参与算术运算?? 这不是废话吗
@@ -99,43 +95,92 @@ int Param_check(FieldList p1, FieldList p2) {
 
 //--------------------------------------
 
-int insertSymbol(char *name, Type type){
+symtab* head = NULL;
+
+void initTable() {
+    for (int i = 0; i < HASH_TABLE_SIZE + 2; i++) gTable[i] = NULL;// 默认为NULL吗
+    head = (symtab*)malloc(sizeof(symtab));
+    head->par = NULL; head->table = NULL;
+}
+
+symtab* newsScope() {
+    symtab* stab = (symtab*)malloc(sizeof(symtab));
+    stab->par = head;
+    stab->table = NULL;
+    head = stab;
+    return stab;
+}
+
+symtab* deleteScope() {
+    assert(head);
+    //symtab* deleteSymtab = head;
+    head = head->par;
+    /*TODO: delete*/
+    // freeMap(deleteSymtab->table);
+    // free(deleteSymtab);
+    return head;
+}
+
+// void freeMap(HashNode node) { // free map in field
+//     if (NULL == node) return;
+//     freeMap(node->nxt);
+//     freeNode(node);
+// }
+
+void insertSymbol(char *name, Type type){
     unsigned int hash = hashFunc(name);
-    HashNode hashNode = (HashNode) malloc(sizeof(struct HashNode_));
-    hashNode->name = name; hashNode->type = type;
-    // 构建新的符号并用name、type初始化;
-    // HashNode *node = gTable[hash];
-    // if(node==NULL){
-    //     gTable[hash] = newnode;
-    //     return 0;
-    // } else {
-    //     循环遍历直到node->next为NULL，
-    //     插入；
-    // }
+    HashNode newnode = (HashNode) malloc(sizeof(struct HashNode_));
+    newnode->name = name; newnode->type = type; newnode->next = NULL; newnode->nxt = NULL;
+    HashNode node = gTable[hash];
+    if(node == NULL){
+        gTable[hash] = newnode;
+        //return 0;
+    } else {
+        while (node->next != NULL) node = node->next;
+        node->next = newnode;
+    }
+    /*TODO: FieldList param;*/
+    if (NULL == head->table) {
+        head->table = newnode;
+    }
+    else {
+        HashNode n = head->table;
+        while (n->nxt != NULL) n = n->nxt;
+        n->nxt = newnode;
+    }
 }
 
 int checkSymbol(char *name){
     unsigned int hash = hashFunc(name);
-    // for(HashNode *node = gTable[hash]; node!=NULL; node = node->next){
-    //     if(strcmp(node->name, name) == 0){
-    //         return 1;
-    //     }
-    // }
-    // return 0;
+    for(HashNode node = gTable[hash]; node != NULL; node = node->next){
+        if(strcmp(node->name, name) == 0){
+            return 1;
+        }
+    }
+    return 0;
 }
 
 int checkField(char *name){
-    unsigned int hash = hashFunc(name);
-    // for(HashNode *node = gTable[hash]; node!=NULL; node = node->next){
-    //     if(strcmp(node->name, name) == 0){
-    //         return 1;
-    //     }
-    // }
-    // return 0;
+    if (NULL == head) return 0;
+    for(HashNode node = head->table; node != NULL; node = node->nxt){
+        if(strcmp(node->name, name) == 0){
+            return 1;
+        }
+    }
+    return 0;
 }
 
-Type Type_get(char *name) {
-
+Type Type_get(char *name) { // 从最近的field开始遍历
+    symtab* cur = head;
+    while (NULL != cur) {
+        for(HashNode p = cur->table; p != NULL; p = p->nxt){
+            if(strcmp(p->name, name) == 0){
+                return p->type;
+            }
+        }
+        cur = cur->par;
+    }
+    return NULL;
 }
 
 Type Type_get_f(FieldList domain, char *name) { // for struct field

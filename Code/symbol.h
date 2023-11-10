@@ -77,13 +77,27 @@ typedef struct HashNode_* HashNode;
 struct HashNode_{
     char *name;
     Type type;
-    FieldList param;
+    //FieldList param;
     struct HashNode_ *next;
+    struct HashNode_ *nxt; // in scope
 };
 
 #define HASH_TABLE_SIZE 0x3fff
-extern HashNode *gTable[HASH_TABLE_SIZE + 2];
-extern HashNode *sTable[HASH_TABLE_SIZE + 2];
+extern HashNode gTable[HASH_TABLE_SIZE + 2];
+//extern HashNode sTable[HASH_TABLE_SIZE + 2];
+
+typedef struct _symtab {
+    struct _symtab* par;
+    HashNode table;
+} symtab;
+
+symtab* newsScope();
+symtab* deleteScope();
+//void freeMap(HashNode node);
+
+extern symtab* head;
+
+void initTable();
 
 static inline unsigned int hashFunc(char *key) {
     unsigned int val = 0, i;
@@ -94,7 +108,7 @@ static inline unsigned int hashFunc(char *key) {
     return val;
 }
 
-int insertSymbol(char *name, Type type);
+void insertSymbol(char *name, Type type);
 int checkSymbol(char *name);
 int checkField(char *name);
 Type Type_get(char *name);

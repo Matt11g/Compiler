@@ -2,6 +2,7 @@
 
 void semantic_check(node_t* root) {
     /* init */
+    initTable();
     ExtDefList(root->fir);
     /* memory management */
 }
@@ -28,7 +29,9 @@ void ExtDef(node_t* node) {
     }
     else if (strcmp(n->type_name, "ExtDecList") == 0) {
         Type varType = Specifier(spec);
-        if (NULL != varType) /*暂时就这样吧*/ ExtDecList(n, varType, 0); //WHAT??????????
+        if (NULL != varType) {/*暂时就这样吧*/
+            ExtDecList(n, varType, 0); //WHAT??????????
+        }
     }
     
 
@@ -51,7 +54,8 @@ void ExtDef(node_t* node) {
 }
 
 FieldList ExtDecList(node_t* node, Type type, int structflag) {
-    assert(strcmp(node->type_name, "ExtDecList") == 0);
+    // ExtDecList -> VarDec | VarDec COMMA ExtDecList
+    assert(node && strcmp(node->type_name, "ExtDecList") == 0);
     node_t* n = node->fir;
     FieldList f = VarDec(n, type, structflag);
     if (NULL != n->sib) f->tail = ExtDecList(n->sib->sib, type, structflag);
@@ -74,10 +78,11 @@ void ExtSpecifier(node_t* node) {
 Type Specifier(node_t* node) {
     // Specifier -> TYPE | StructSpecifier
     // StructSpecifier -> STRUCT OptTag LC DefList RC | STRUCT Tag
+    // TYPE -> int | float
     node_t* n = node->fir; assert(n);
     if (strcmp(n->type_name, "TYPE") == 0) {
-        if (n->type == TOKEN_INT) return newType(INTType);
-        else if (n->type == TOKEN_FLOAT) return newType(FLOATType);
+        if (strcmp(n->id, "int") == 0) return newType(INTType);
+        else if (strcmp(n->id, "float") == 0) return newType(FLOATType);
         else assert(0);
     }
     else if (strcmp(n->type_name, "StructSpecifier") == 0) {
@@ -170,6 +175,13 @@ void CompSt(node_t* node, Type ntype) {
     assert (strcmp(node->fir->sib->sib->type_name, "StmtList") == 0);
     StmtList(node->fir->sib->sib, ntype);
     /*deleteScope()*/
+}
+
+void StmtList(node_t* node, Type ntype) {
+    if (NULL == node) return;
+    assert(node->fir);
+    Stmt(node->fir, ntype);
+    StmtList(node->fir->sib, ntype);
 }
 
 void Stmt(node_t* node, Type ntype) {
@@ -350,6 +362,21 @@ Type Exp(node_t* node) {
     assert(0);
 }
 
+FieldList Args(node_t* node) {
+    // Args -> Exp COMMA Args | Exp
+    node_t* n = node->fir;
+    assert(strcmp(n->type_name, "Exp") == 0);
+    Type type = Exp(n);
+    FieldList f = (FieldList)malloc(sizeof(struct FieldList_));
+    f->type = type;
+    f->name = NULL;
+    if (NULL == n->sib) {
+        f->tail = NULL;
+    }
+    else f->tail = Args(n->sib->sib);
+    return f;
+}
+
 FieldList VarDec(node_t* node, Type type, int structflag) { // 为什么返回FieldList
     // VarDec -> ID | VarDec LB INT RB
     node_t *n = node->fir;
@@ -358,9 +385,11 @@ FieldList VarDec(node_t* node, Type type, int structflag) { // 为什么返回Fi
             if (structflag == 0) printf("Error type 3 at Line %d: redefined variable\n", n->lineno);
             else printf("Error type 15 at Line %d: redefine member in structure field\n", n->lineno);
         }
-        else insertSymbol(n->id, type); /*TODO: n的符号名及类型插入全局符号表中;*/
+        else {
+            insertSymbol(n->id, type); /*TODO: n的符号名及类型插入全局符号表中;*/
+        }
         FieldList field = (FieldList)malloc(sizeof(struct FieldList_));
-        strcpy(field->name, n->id);
+        field->name = n->id;
         field->tail = NULL;
         field->type = type;
         return field; // 出错/不是struct也先返回好了，应该不会插入，防止中断(但是涉及内存释放问题) ||||| 思考：field list重复怎么办？  插入好像也没问题，除非两个类型不一致，暂时不管，可在DecList改
@@ -376,7 +405,7 @@ FieldList VarDec(node_t* node, Type type, int structflag) { // 为什么返回Fi
     else assert(0);
 }
 
-FieldList Dec(node_t* node, Type type, int structflag){
+FieldList Dec(node_t* node, Type type, int structflag) {
     node_t* n = node->fir;
     // Dec -> VarDec | VarDec ASSIGNOP Exp
     FieldList f = VarDec(n, type, structflag); // 是否应该传type？type是什么？
