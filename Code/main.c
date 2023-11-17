@@ -2,6 +2,7 @@
 //#include "syntax.tab.h"
 #include "syntaxTree.h"
 #include "semantic.h"
+#include "intercode.h"
 extern node_t* root;
 //extern FILE* yyin;
 extern void yyrestart(FILE* input_file);
@@ -34,6 +35,16 @@ int main(int argc, char** argv) {
     if (lexError == 0 && synError == 0) { // 语法树正确构建
         semantic_check(root); // 语义分析
     }
+
+    FILE* ff;
+    CodeList codelisthead = getInterCode(root);
+    if (argv[2] == NULL) {ff = fopen("output", "w");}
+    else {
+        ff = fopen(argv[2], "w");
+    }
+    print_IR(codelisthead, ff);
+    fclose(ff);
+
     return 0; 
 }
 
