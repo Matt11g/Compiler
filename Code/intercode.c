@@ -394,6 +394,7 @@ CodeList translate_Exp(node_t* Exp, Operand place) { // place表示值
             if (lval->kind == Em_ARR) { // TODO:需要？？
                 // rval = Exp, ID = rval, place = &IDInterCode ic0 = new_InterCode(IC_ASSIGN), ic1 = new_InterCode(IC_ASSIGN);
                 ic0 = new_InterCode(IC_ASSIGN), ic1 = new_InterCode(IC_ASSIGN); // Situation: int array[5], a[5];a = array;
+                lval->para = 1; // FIXME: 假象的PARA
             }
             else {
                 ic0 = new_InterCode(IC_ASSIGN), ic1 = new_InterCode(IC_ASSIGN);
@@ -493,7 +494,7 @@ CodeList translate_Exp(node_t* Exp, Operand place) { // place表示值
             // 赋值 place = *t2 or place = t2 (不是末尾)
             InterCode ic4;
             if (arrayType->kind == BASIC && arrayType->u.basic == 1/*tail*/) {
-                if (place && place->isaddr == 1) ic4 = new_InterCode(IC_ASSIGN); // for ASSIGNOP, a[1] = *;
+                if (place && place->isaddr == 1) ic4 = new_InterCode(IC_ASSIGN); // for ASSIGNOP, a[1] = **;
                 else ic4 = new_InterCode(IC_DEREF);
             }
             else {
@@ -646,7 +647,7 @@ Operand newOperand(enum OpKind kind, int value) {
         case Em_CONSTANT: op->u.val = value; break;
         case Em_ADDRESS: break;  // need????????????????????????
         case Em_LABEL: op->u.labelno = value; break;
-        case Em_ARR: op->u.val = value;  // need????????????????????????
+        case Em_ARR: op->u.val = value; break;  // need????????????????????????
         //case Em_STRUCT: break;
         case Em_TEMP: op->u.tempno = value; break;
         default: assert(0); 
