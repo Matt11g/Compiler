@@ -1,58 +1,46 @@
-//struct成员设为全局,则PASS
-
-//int func(int x, int x); Lab1已经修复
-
-struct Combination {
-	int c_base;
-	int c_num;
-	int c_answer;
-};
-
-struct Permutation{
-	int p_base;
-	int p_num;
-	int p_answer;
-};
-
-int factorial(int n);
-
-int factorial(int n){
-	int f_sum = 1;
-	int index = n;
-	while(index > 1){
-		f_sum = f_sum * index;
-		index = index - 1;
-	}
-	return f_sum;
+int main()
+{
+    int b[3], c[10];
+    int i = 0, j, t, a[5];
+    while(i < 5)
+    {
+        a[i] = read();
+        i = i + 1;
+    }
+    i = 0;
+    while(i < 4)
+    {
+        j = i + 1;
+        while(j < 5)
+        {
+            if(a[i] > a[j])
+            {
+                t = a[i];
+                a[i] = a[j];
+                a[j] = t;
+            }
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+    i = 0;
+    while(i < 5)
+    {
+        write(a[i]);
+        i = i + 1;
+    }
+    b = a;
+    c = a;
+    i = 0;
+    while(i < 5){
+        if(i < 3){
+            write(b[i]);
+            write(c[i]);
+        }
+        else{
+            write(c[i]);
+        }
+        i = i + 1;
+    }
+    return 0;
 }
-
-int calculation_combination(struct Combination com){
-	int cc_sum = 1;
-	cc_sum = cc_sum * factorial(com.c_base);
-	cc_sum = cc_sum / factorial(com.c_num);
-	cc_sum = cc_sum / factorial(com.c_base - com.c_num);
-	return cc_sum;
-}
-
-
-int calculation_permutation(struct Permutation per){
-	int cp_sum = 1;
-	cp_sum = cp_sum * factorial(per.p_base);
-	cp_sum = cp_sum / factorial(per.p_base - per.p_answer);
-	return cp_sum;
-}
-
-int calculation_combination(struct Combination com);
-
-
-int main(){
-	struct Combination com1;
-	struct Permutation per1;
-	per1.p_base = com1.c_base = 4;
-	per1.p_num = com1.c_num = 2;
-	com1.c_answer = calculation_combination(com1);
-	per1.p_answer = calculation_permutation(per1);
-	return 0;
-}
-
-int calculation_permutation(struct Permutation per);

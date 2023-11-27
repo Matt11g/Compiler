@@ -102,6 +102,7 @@ void initTable() {
 }
 
 symtab* newScope() {
+    return NULL; // Modified in Lab3
     symtab* stab = (symtab*)malloc(sizeof(symtab));
     stab->par = head;
     stab->table = NULL;
@@ -110,6 +111,7 @@ symtab* newScope() {
 }
 
 symtab* deleteScope() {
+    return NULL; // Modified in Lab3
     assert(head);
     //symtab* deleteSymtab = head;
     head = head->par;

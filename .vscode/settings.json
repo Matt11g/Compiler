@@ -1,6 +1,7 @@
 {
     "files.associations": {
-        "syntaxtree.h": "c"
+        "syntaxtree.h": "c",
+        "stdlib.h": "c"
     },
     "C_Cpp.errorSquiggles": "enabled"
 }

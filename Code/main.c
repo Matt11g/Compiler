@@ -36,8 +36,8 @@ int main(int argc, char** argv) {
         semantic_check(root); // 语义分析
     }
 
-    FILE* ff;
-    CodeList codelisthead = getInterCode(root);
+    FILE* ff = NULL;
+    CodeList codelisthead = getIntercode(root);
     if (argv[2] == NULL) {ff = fopen("output", "w");}
     else {
         ff = fopen(argv[2], "w");

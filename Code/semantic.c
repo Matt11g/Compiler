@@ -3,6 +3,28 @@
 void semantic_check(node_t* root) {
     /* init */
     initTable();
+    /* In Lab3 */
+    Function func = (Function)malloc(sizeof(struct Function_));
+    strcpy(func->name, "write");
+    func->type = newType(INTType); // 其实是空吧
+    Type funcType = newType(FuncType);
+    funcType->u.function = func; // 小心被delete，指向相同的地址了，很危险！！！！！
+    insertSymbol("write", funcType);
+    /* FieldList */
+    FieldList field = (FieldList)malloc(sizeof(struct FieldList_));
+    field->name = NULL;
+    field->tail = NULL;
+    field->type = newType(INTType);
+    func->param = field;
+    /**/
+    Function func1 = (Function)malloc(sizeof(struct Function_));
+    strcpy(func1->name, "read");
+    func1->type = newType(INTType);
+    func1->param = NULL;
+    Type func1Type = newType(FuncType);
+    func1Type->u.function = func1; // 小心被delete，指向相同的地址了，很危险！！！！！
+    insertSymbol("read", func1Type);
+
     ExtDefList(root->fir);
     /* memory management */
 }
@@ -413,8 +435,10 @@ FieldList Args(node_t* node) {
     FieldList f = (FieldList)malloc(sizeof(struct FieldList_));
     f->type = type;
     f->name = NULL;
+    //printf("herex\n");
     if (NULL == n->sib) {
         f->tail = NULL;
+        //printf("herey\n");
     }
     else f->tail = Args(n->sib->sib);
     return f;

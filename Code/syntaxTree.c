@@ -38,6 +38,7 @@ node_t* create_node(int token_type, char *typename, int line, char *text) {
         case TOKEN_FLOAT: node->num.type_float = atof(text); break;
         default: break;
     }
+    if (strcmp(typename, "RELOP") == 0) strcpy(node->id, text); // in Lab3
     node->fir = NULL; node->sib = NULL;
     return node;
 }
